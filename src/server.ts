@@ -44,6 +44,7 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
+      console.error("SSR request failed:", request.method, request.url);
       console.error(error);
       return new Response(renderErrorPage(), {
         status: 500,
