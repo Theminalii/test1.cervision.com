@@ -8,6 +8,7 @@ This project is a `TanStack Start` SSR app, so it should be deployed on Hostinge
 - Install command: `npm install`
 - Build command: `npm run build`
 - Start command: `npm run start`
+- Hostinger entry file: `hostinger-entry.mjs`
 
 ## What the start command does
 
@@ -18,6 +19,14 @@ srvx --prod -s dist/client dist/server/server.js
 ```
 
 These files are created after `npm run build`.
+
+For Hostinger's `Entry file` field, use:
+
+```bash
+hostinger-entry.mjs
+```
+
+That file starts a Node server, serves static assets from `dist/client`, and forwards other requests to the built SSR handler in `dist/server/server.js`.
 
 ## Environment variables
 
@@ -39,6 +48,7 @@ NODE_ENV=production
    - Install: `npm install`
    - Build: `npm run build`
    - Start: `npm run start`
+   - Entry file: `hostinger-entry.mjs`
 4. Redeploy the app.
 
 ## Important note
