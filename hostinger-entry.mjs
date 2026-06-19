@@ -7,6 +7,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(__dirname, "dist", "client");
 const serverModule = await import("./dist/server/server.js");
 const app = serverModule.default;
+process.on("uncaughtException", (error) => {
+  console.error("uncaughtException");
+  console.error(error);
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("unhandledRejection");
+  console.error(reason);
+});
 
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -102,15 +110,20 @@ async function sendWebResponse(nodeRes, webRes) {
 const port = Number(process.env.PORT || 3000);
 
 createServer(async (req, res) => {
+  const startedAt = Date.now();
+  const url = req.url ?? "/";
   try {
     if (await tryServeStatic(req, res)) {
+      console.log(`[static] ${req.method} ${url} -> 200 (${Date.now() - startedAt}ms)`);
       return;
     }
 
     const request = toWebRequest(req);
     const response = await app.fetch(request, {}, {});
     await sendWebResponse(res, response);
+    console.log(`[ssr] ${req.method} ${url} -> ${response.status} (${Date.now() - startedAt}ms)`);
   } catch (error) {
+    console.error(`[entry] ${req.method} ${url} failed after ${Date.now() - startedAt}ms`);
     console.error(error);
     res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
     res.end("Internal Server Error");
