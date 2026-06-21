@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { SUBMISSIONS } from "@/lib/mock-data";
+import { useApiQuery } from "@/lib/api-client";
 
 export const Route = createFileRoute("/mentor/submissions")({
   head: () => ({ meta: [{ title: "Submissions — Mentor — KAFD" }] }),
@@ -18,9 +18,10 @@ export const Route = createFileRoute("/mentor/submissions")({
 function MentorSubmissions() {
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
-  const filtered = SUBMISSIONS.filter((s) =>
-    (filter === "all" || s.status === filter) &&
-    (q === "" || s.title.toLowerCase().includes(q.toLowerCase()) || s.team.toLowerCase().includes(q.toLowerCase()))
+  const { data = [], isLoading } = useApiQuery<Array<any>>(["mentor-submissions"], "/api/mentor/submissions");
+  const filtered = data.filter((s) =>
+    (filter === "all" || s.submissionStatus === filter) &&
+    (q === "" || s.title.toLowerCase().includes(q.toLowerCase()) || s.teamName.toLowerCase().includes(q.toLowerCase()))
   );
   return (
     <AppShell role="mentor" title="Assigned Submissions" breadcrumbs={[{ label: "Mentor" }, { label: "Submissions" }]}>
@@ -43,18 +44,19 @@ function MentorSubmissions() {
 
       <Card className="mt-6 p-0">
         <Table>
-          <TableHeader>
-            <TableRow><TableHead>Project</TableHead><TableHead>Team</TableHead><TableHead>Track</TableHead><TableHead>Status</TableHead><TableHead>Updated</TableHead><TableHead></TableHead></TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((s) => (
-              <TableRow key={s.id}>
+            <TableHeader>
+              <TableRow><TableHead>Project</TableHead><TableHead>Team</TableHead><TableHead>Track</TableHead><TableHead>Status</TableHead><TableHead>Updated</TableHead><TableHead></TableHead></TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? <TableRow><TableCell colSpan={6} className="text-sm text-muted-foreground">Loading submissions…</TableCell></TableRow> : null}
+              {filtered.map((s) => (
+              <TableRow key={s.submissionId}>
                 <TableCell className="font-medium">{s.title}</TableCell>
-                <TableCell>{s.team}</TableCell>
-                <TableCell className="text-muted-foreground">{s.track}</TableCell>
-                <TableCell><StatusBadge status={s.status} /></TableCell>
-                <TableCell className="text-muted-foreground">{s.updatedAt}</TableCell>
-                <TableCell><Button asChild variant="outline" size="sm"><Link to="/mentor/submissions/$submissionId" params={{ submissionId: s.id }}>Open</Link></Button></TableCell>
+                <TableCell>{s.teamName}</TableCell>
+                <TableCell className="text-muted-foreground">{s.trackName}</TableCell>
+                <TableCell><StatusBadge status={s.submissionStatus} /></TableCell>
+                <TableCell className="text-muted-foreground">{new Date(s.updatedAt).toLocaleDateString()}</TableCell>
+                <TableCell><Button asChild variant="outline" size="sm"><Link to="/mentor/submissions/$submissionId" params={{ submissionId: s.submissionId }}>Open</Link></Button></TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -7,7 +7,7 @@ import {
   Users, UserCheck, Briefcase, FileText, ClipboardList, MessageSquare, RefreshCw,
   CheckCircle2, Send, Activity, Trophy, Star, ShieldCheck, Gavel, BarChart3
 } from "lucide-react";
-import { METRICS } from "@/lib/mock-data";
+import { useApiQuery } from "@/lib/api-client";
 
 export const Route = createFileRoute("/admin/dashboard")({
   head: () => ({ meta: [{ title: "Admin Command Center — KAFD" }] }),
@@ -15,39 +15,43 @@ export const Route = createFileRoute("/admin/dashboard")({
 });
 
 function AdminDashboard() {
-  const m = METRICS;
+  const { data: m, isLoading } = useApiQuery<any>(["admin-dashboard"], "/api/admin/dashboard");
   return (
     <AppShell role="admin" title="Command Center" breadcrumbs={[{ label: "Admin" }, { label: "Command Center" }]}>
+      {isLoading || !m ? (
+        <Card className="p-6 text-sm text-muted-foreground">Loading dashboard…</Card>
+      ) : (
+      <>
       <section>
         <SectionTitle title="People" />
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Total participants" value={m.totalParticipants} icon={Users} tone="default" />
-          <MetricCard label="Activated participants" value={m.activatedParticipants} icon={UserCheck} tone="success" />
-          <MetricCard label="Teams created" value={m.teamsCreated} icon={Briefcase} tone="default" />
-          <MetricCard label="Pending mentor reviews" value={m.pendingMentorReviews} icon={ShieldCheck} tone="warning" />
+          <MetricCard label="Total participants" value={m.total_participants} icon={Users} tone="default" />
+          <MetricCard label="Activated participants" value={m.activated_participants} icon={UserCheck} tone="success" />
+          <MetricCard label="Teams created" value={m.teams_created} icon={Briefcase} tone="default" />
+          <MetricCard label="Pending mentor reviews" value={m.pending_mentor_reviews} icon={ShieldCheck} tone="warning" />
         </div>
       </section>
 
       <section className="mt-8">
         <SectionTitle title="Workflow" />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <MetricCard label="Draft submissions" value={m.draftSubmissions} icon={FileText} />
-          <MetricCard label="Submitted for review" value={m.submittedForReview} icon={ClipboardList} tone="info" />
-          <MetricCard label="Needs clarification" value={m.needsClarification} icon={MessageSquare} tone="warning" />
-          <MetricCard label="Resubmitted" value={m.resubmittedForReview} icon={RefreshCw} tone="info" />
-          <MetricCard label="Approved for judging" value={m.approvedForJudging} icon={CheckCircle2} tone="success" />
-          <MetricCard label="Released to judges" value={m.releasedToJudges} icon={Send} tone="info" />
-          <MetricCard label="Judging in progress" value={m.judgingInProgress} icon={Activity} tone="info" />
-          <MetricCard label="Judged" value={m.judged} icon={Gavel} tone="success" />
+          <MetricCard label="Draft submissions" value={m.draft_submissions} icon={FileText} />
+          <MetricCard label="Submitted for review" value={m.submitted_for_mentor_review} icon={ClipboardList} tone="info" />
+          <MetricCard label="Needs clarification" value={m.needs_clarification} icon={MessageSquare} tone="warning" />
+          <MetricCard label="Resubmitted" value={m.resubmitted_for_review} icon={RefreshCw} tone="info" />
+          <MetricCard label="Approved for judging" value={m.approved_for_judging} icon={CheckCircle2} tone="success" />
+          <MetricCard label="Released to judges" value={m.released_to_judges} icon={Send} tone="info" />
+          <MetricCard label="Judging in progress" value={m.judging_in_progress} icon={Activity} tone="info" />
+          <MetricCard label="Judged" value={m.judged_submissions} icon={Gavel} tone="success" />
         </div>
       </section>
 
       <section className="mt-8">
         <SectionTitle title="Outcomes" />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <MetricCard label="Shortlisted" value={m.shortlisted} icon={Star} tone="gold" />
-          <MetricCard label="Winners selected" value={m.winnersSelected} icon={Trophy} tone="gold" />
-          <MetricCard label="Completed judge reviews" value={m.completedJudgeReviews} icon={BarChart3} tone="default" />
+          <MetricCard label="Shortlisted" value={m.shortlisted_projects} icon={Star} tone="gold" />
+          <MetricCard label="Winners selected" value={m.winners_selected} icon={Trophy} tone="gold" />
+          <MetricCard label="Completed judge reviews" value={m.completed_judge_reviews} icon={BarChart3} tone="default" />
         </div>
       </section>
 
@@ -57,9 +61,9 @@ function AdminDashboard() {
             <h3 className="font-display font-semibold">Judging completion</h3>
             <p className="text-sm text-muted-foreground">Across all assigned judges</p>
           </div>
-          <div className="font-display text-3xl font-bold text-primary">{m.judgingCompletionPct}%</div>
+          <div className="font-display text-3xl font-bold text-primary">{m.judging_completion_percentage}%</div>
         </div>
-        <Progress value={m.judgingCompletionPct} className="mt-4" />
+        <Progress value={m.judging_completion_percentage} className="mt-4" />
       </Card>
 
       <Card className="mt-6 p-6">
@@ -70,6 +74,8 @@ function AdminDashboard() {
           <Status label="Judging" status="In progress" tone="info" />
         </div>
       </Card>
+      </>
+      )}
     </AppShell>
   );
 }

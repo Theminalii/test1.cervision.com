@@ -1,8 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { AppShell } from "@/components/shared/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Users, FilePlus2, ArrowRight } from "lucide-react";
+import { apiPost } from "@/lib/api-client";
 
 export const Route = createFileRoute("/app/onboarding")({
   head: () => ({ meta: [{ title: "Get Started — KAFD Hackathon" }] }),
@@ -10,6 +16,10 @@ export const Route = createFileRoute("/app/onboarding")({
 });
 
 function Onboarding() {
+  const nav = useNavigate();
+  const queryClient = useQueryClient();
+  const [teamName, setTeamName] = useState("");
+  const [trackId, setTrackId] = useState("track_fintech");
   return (
     <AppShell role="participant" title="Welcome to KAFD Hackathon" breadcrumbs={[{ label: "Participant" }, { label: "Get Started" }]}>
       <div className="mx-auto max-w-3xl space-y-6">
@@ -32,9 +42,35 @@ function Onboarding() {
               <FilePlus2 className="size-6 text-gold-foreground" />
               <h3 className="mt-3 font-display font-semibold">Create a new team</h3>
               <p className="mt-1 text-sm text-muted-foreground">Become the team lead and invite members.</p>
-              <Button asChild variant="kafd" className="mt-4 w-full">
-                <Link to="/app/dashboard">Create team <ArrowRight className="size-4" /></Link>
-              </Button>
+              <div className="mt-4 space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Team name</Label>
+                  <Input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Atlas Capital" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Track</Label>
+                  <select value={trackId} onChange={(e) => setTrackId(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="track_fintech">FinTech</option>
+                    <option value="track_smart_city">Smart City</option>
+                    <option value="track_sustainability">Sustainability</option>
+                    <option value="track_ai_automation">AI & Automation</option>
+                    <option value="track_digital_experience">Digital Experience</option>
+                  </select>
+                </div>
+                <Button variant="kafd" className="w-full" onClick={async () => {
+                  try {
+                    await apiPost("/api/teams", { name: teamName, track_id: trackId });
+                    await queryClient.invalidateQueries({ queryKey: ["auth-context"] });
+                    await queryClient.invalidateQueries({ queryKey: ["my-team"] });
+                    toast.success("Team created");
+                    nav({ to: "/app/dashboard" });
+                  } catch (error) {
+                    toast.error(error instanceof Error ? error.message : "Team creation failed");
+                  }
+                }}>
+                  Create team <ArrowRight className="size-4" />
+                </Button>
+              </div>
             </Card>
           </div>
         </Card>

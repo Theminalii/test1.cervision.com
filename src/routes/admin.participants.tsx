@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search } from "lucide-react";
-import { PARTICIPANTS } from "@/lib/mock-data";
+import { useApiQuery } from "@/lib/api-client";
 
 export const Route = createFileRoute("/admin/participants")({
   head: () => ({ meta: [{ title: "Participants — Admin — KAFD" }] }),
   component: () => {
     const [q, setQ] = useState("");
-    const items = PARTICIPANTS.filter(p => q === "" || p.name.toLowerCase().includes(q.toLowerCase()) || p.email.includes(q.toLowerCase())).slice(0, 50);
+    const { data = [], isLoading } = useApiQuery<Array<any>>(["admin-participants"], "/api/admin/participants");
+    const items = data.filter(p => q === "" || p.fullName.toLowerCase().includes(q.toLowerCase()) || p.email.includes(q.toLowerCase())).slice(0, 50);
     return (
       <AppShell role="admin" title="Participants" breadcrumbs={[{ label: "Admin" }, { label: "Participants" }]}>
         <Card className="p-4">
@@ -25,18 +26,19 @@ export const Route = createFileRoute("/admin/participants")({
           <Table>
             <TableHeader><TableRow><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Team</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
             <TableBody>
+              {isLoading ? <TableRow><TableCell colSpan={5} className="text-sm text-muted-foreground">Loading participants…</TableCell></TableRow> : null}
               {items.map(p => (
                 <TableRow key={p.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">{p.id}</TableCell>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="font-medium">{p.fullName}</TableCell>
                   <TableCell className="text-muted-foreground">{p.email}</TableCell>
-                  <TableCell>{p.team ?? <span className="text-muted-foreground">—</span>}</TableCell>
-                  <TableCell><Badge variant="outline" className={p.status === "Activated" ? "border-success/30 bg-success/10 text-success" : "border-warning/30 bg-warning/15 text-warning-foreground"}>{p.status}</Badge></TableCell>
+                  <TableCell><span className="text-muted-foreground">See team detail</span></TableCell>
+                  <TableCell><Badge variant="outline" className={p.status === "active" ? "border-success/30 bg-success/10 text-success" : "border-warning/30 bg-warning/15 text-warning-foreground"}>{p.status}</Badge></TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          <div className="border-t border-border p-3 text-center text-xs text-muted-foreground">Showing {items.length} of {PARTICIPANTS.length}</div>
+          <div className="border-t border-border p-3 text-center text-xs text-muted-foreground">Showing {items.length} of {data.length}</div>
         </Card>
       </AppShell>
     );

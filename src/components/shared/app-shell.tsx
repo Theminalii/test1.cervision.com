@@ -4,12 +4,13 @@ import {
   Settings, Download, Trophy, Star, Gavel, ClipboardList, History, UserPlus,
   Briefcase, Award, BarChart3, ShieldCheck, Mail, FolderKanban, Menu, ChevronRight,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { RoleSwitcher } from "./role-switcher";
 import type { Role } from "@/lib/mock-data";
+import { useAuthContext } from "@/lib/auth-client";
 
 type NavItem = { to: string; label: string; icon: any };
 type NavGroup = { label: string; items: NavItem[] };
@@ -161,6 +162,42 @@ export function AppShell({
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { data, isLoading } = useAuthContext();
+
+  const allowed =
+    role === "visitor"
+      ? true
+      : role === "participant"
+        ? data?.authenticated && data.platformRole === "participant" && !data.teamRole
+        : role === "team_lead"
+          ? data?.authenticated && data.platformRole === "participant" && data.teamRole === "lead"
+          : role === "team_member"
+            ? data?.authenticated && data.platformRole === "participant" && data.teamRole === "member"
+            : role === "mentor"
+              ? data?.authenticated && data.platformRole === "mentor"
+              : role === "judge"
+                ? data?.authenticated && data.platformRole === "judge"
+                : data?.authenticated && data.platformRole === "admin";
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!data?.authenticated) {
+      navigate({ to: "/login" });
+      return;
+    }
+    if (!allowed) {
+      navigate({ to: data.correctRedirectPath });
+    }
+  }, [allowed, data, isLoading, navigate]);
+
+  if (role !== "visitor" && isLoading) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading portal…</div>;
+  }
+
+  if (role !== "visitor" && (!data?.authenticated || !allowed)) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Checking access…</div>;
+  }
+
   return (
     <div className="min-h-screen bg-muted/40">
       <div className="grid min-h-screen w-full lg:grid-cols-[260px_minmax(0,1fr)]">

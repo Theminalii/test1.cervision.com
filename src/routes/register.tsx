@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PublicNav } from "@/components/shared/public-nav";
@@ -7,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { setRole } from "@/lib/role";
+import { register } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/register")({
   head: () => ({ meta: [
@@ -19,16 +20,30 @@ export const Route = createFileRoute("/register")({
 
 function RegisterPage() {
   const nav = useNavigate();
+  const queryClient = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
     setSubmitting(true);
-    setTimeout(() => {
-      setRole("participant");
+
+    try {
+      const context = await register({
+        fullName: String(formData.get("fullName") ?? ""),
+        email: String(formData.get("email") ?? ""),
+        phone: String(formData.get("phone") ?? ""),
+        password: String(formData.get("password") ?? ""),
+        confirmPassword: String(formData.get("confirmPassword") ?? ""),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["auth-context"] });
       toast.success("Participant account created");
-      nav({ to: "/app/onboarding" });
-    }, 600);
+      nav({ to: context.correctRedirectPath });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Registration failed");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -50,12 +65,12 @@ function RegisterPage() {
 
         <Card className="p-8">
           <form onSubmit={onSubmit} className="space-y-4">
-            <Field label="Full name"><Input required placeholder="Sara Al-Otaibi" /></Field>
-            <Field label="Email address"><Input required type="email" placeholder="you@company.sa" /></Field>
-            <Field label="Phone number"><Input required type="tel" placeholder="+966 5X XXX XXXX" /></Field>
+            <Field label="Full name"><Input required name="fullName" placeholder="Sara Al-Otaibi" /></Field>
+            <Field label="Email address"><Input required name="email" type="email" placeholder="you@company.sa" /></Field>
+            <Field label="Phone number"><Input required name="phone" type="tel" placeholder="+966 5X XXX XXXX" /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Password"><Input required type="password" placeholder="••••••••" /></Field>
-              <Field label="Confirm password"><Input required type="password" placeholder="••••••••" /></Field>
+              <Field label="Password"><Input required name="password" type="password" placeholder="••••••••" /></Field>
+              <Field label="Confirm password"><Input required name="confirmPassword" type="password" placeholder="••••••••" /></Field>
             </div>
             <Button type="submit" disabled={submitting} variant="kafd" className="w-full" size="lg">
               {submitting ? "Creating account…" : "Create Participant Account"}

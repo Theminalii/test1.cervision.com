@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/shared/app-shell";
 import { Card } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Save, Eye, Send } from "lucide-react";
-import { SAMPLE_SUBMISSION, TRACKS } from "@/lib/mock-data";
+import { apiPost, apiPut, useApiQuery } from "@/lib/api-client";
 
 export const Route = createFileRoute("/app/submission")({
   head: () => ({ meta: [{ title: "Submission Builder — KAFD" }] }),
@@ -17,8 +18,69 @@ export const Route = createFileRoute("/app/submission")({
 
 function SubmissionBuilder() {
   const nav = useNavigate();
-  const [data, setData] = useState({ ...SAMPLE_SUBMISSION });
+  const queryClient = useQueryClient();
+  const { data: submission, isLoading } = useApiQuery<any | null>(["my-submission"], "/api/submissions/my");
+  const { data: team } = useApiQuery<any | null>(["my-team"], "/api/teams/my");
+  const [data, setData] = useState({
+    title: "",
+    shortSummary: "",
+    trackId: "",
+    problem: "",
+    solution: "",
+    impact: "",
+    technicalDescription: "",
+    demoUrl: "",
+    deckUrl: "",
+    githubUrl: "",
+    videoUrl: "",
+  });
+  useEffect(() => {
+    if (submission) {
+      setData({
+        title: submission.title ?? "",
+        shortSummary: submission.short_summary ?? "",
+        trackId: submission.track_id ?? "",
+        problem: submission.problem ?? "",
+        solution: submission.solution ?? "",
+        impact: submission.impact ?? "",
+        technicalDescription: submission.technical_description ?? "",
+        demoUrl: submission.demo_url ?? "",
+        deckUrl: submission.deck_url ?? "",
+        githubUrl: submission.github_url ?? "",
+        videoUrl: submission.video_url ?? "",
+      });
+    } else if (team?.track_id) {
+      setData((current) => ({ ...current, trackId: team.track_id }));
+    }
+  }, [submission, team?.track_id]);
   const upd = (k: keyof typeof data, v: string) => setData((d) => ({ ...d, [k]: v }));
+
+  const saveDraft = async () => {
+    const payload = {
+      title: data.title,
+      short_summary: data.shortSummary,
+      track_id: data.trackId,
+      problem: data.problem,
+      solution: data.solution,
+      impact: data.impact,
+      technical_description: data.technicalDescription,
+      demo_url: data.demoUrl || undefined,
+      deck_url: data.deckUrl || undefined,
+      github_url: data.githubUrl || undefined,
+      video_url: data.videoUrl || undefined,
+    };
+    if (submission?.id) {
+      const updated = await apiPut<any>(`/api/submissions/${submission.id}`, payload);
+      await queryClient.invalidateQueries({ queryKey: ["my-submission"] });
+      return updated;
+    } else {
+      const created = await apiPost<any>("/api/submissions", payload);
+      await queryClient.invalidateQueries({ queryKey: ["my-submission"] });
+      return created;
+    }
+  };
+
+  const locked = submission && !["Draft", "Needs Clarification"].includes(submission.status);
 
   return (
     <AppShell
@@ -27,23 +89,26 @@ function SubmissionBuilder() {
       breadcrumbs={[{ label: "Team Lead" }, { label: "Submission" }]}
       actions={
         <div className="hidden gap-2 sm:flex">
-          <Button variant="outline" size="sm" onClick={() => toast.success("Draft saved")}><Save className="size-4" />Save</Button>
+          <Button variant="outline" size="sm" onClick={async () => { try { await saveDraft(); toast.success("Draft saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Save failed"); } }}><Save className="size-4" />Save</Button>
           <Button asChild variant="outline" size="sm"><Link to="/app/submission/preview"><Eye className="size-4" />Preview</Link></Button>
         </div>
       }
     >
+      {isLoading ? (
+        <Card className="p-6 text-sm text-muted-foreground">Loading submission…</Card>
+      ) : (
       <div className="grid gap-6">
         <Card className="p-6">
           <h3 className="font-display font-semibold">Project overview</h3>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <Field label="Project title"><Input value={data.title} onChange={(e) => upd("title", e.target.value)} /></Field>
+            <Field label="Project title"><Input disabled={locked} value={data.title} onChange={(e) => upd("title", e.target.value)} /></Field>
             <Field label="Track">
-              <select value={data.track} onChange={(e) => upd("track", e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
-                {TRACKS.map(t => <option key={t.id}>{t.name}</option>)}
+              <select disabled={locked} value={data.trackId} onChange={(e) => upd("trackId", e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">{team?.track_name ?? "Select a track"}</option>
               </select>
             </Field>
             <div className="sm:col-span-2">
-              <Field label="Short summary"><Textarea value={data.summary} onChange={(e) => upd("summary", e.target.value)} rows={2} /></Field>
+              <Field label="Short summary"><Textarea disabled={locked} value={data.shortSummary} onChange={(e) => upd("shortSummary", e.target.value)} rows={2} /></Field>
             </div>
           </div>
         </Card>
@@ -51,31 +116,32 @@ function SubmissionBuilder() {
         <Card className="p-6">
           <h3 className="font-display font-semibold">Problem · Solution · Impact</h3>
           <div className="mt-5 grid gap-5">
-            <Field label="Problem"><Textarea value={data.problem} onChange={(e) => upd("problem", e.target.value)} rows={4} /></Field>
-            <Field label="Solution"><Textarea value={data.solution} onChange={(e) => upd("solution", e.target.value)} rows={4} /></Field>
-            <Field label="Impact"><Textarea value={data.impact} onChange={(e) => upd("impact", e.target.value)} rows={3} /></Field>
-            <Field label="Technical description"><Textarea value={data.technical} onChange={(e) => upd("technical", e.target.value)} rows={4} /></Field>
+            <Field label="Problem"><Textarea disabled={locked} value={data.problem} onChange={(e) => upd("problem", e.target.value)} rows={4} /></Field>
+            <Field label="Solution"><Textarea disabled={locked} value={data.solution} onChange={(e) => upd("solution", e.target.value)} rows={4} /></Field>
+            <Field label="Impact"><Textarea disabled={locked} value={data.impact} onChange={(e) => upd("impact", e.target.value)} rows={3} /></Field>
+            <Field label="Technical description"><Textarea disabled={locked} value={data.technicalDescription} onChange={(e) => upd("technicalDescription", e.target.value)} rows={4} /></Field>
           </div>
         </Card>
 
         <Card className="p-6">
           <h3 className="font-display font-semibold">Links</h3>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <Field label="Demo URL"><Input value={data.demoUrl} onChange={(e) => upd("demoUrl", e.target.value)} /></Field>
-            <Field label="Deck URL"><Input value={data.deckUrl} onChange={(e) => upd("deckUrl", e.target.value)} /></Field>
-            <Field label="GitHub URL"><Input value={data.githubUrl} onChange={(e) => upd("githubUrl", e.target.value)} /></Field>
-            <Field label="Video URL"><Input value={data.videoUrl} onChange={(e) => upd("videoUrl", e.target.value)} /></Field>
+            <Field label="Demo URL"><Input disabled={locked} value={data.demoUrl} onChange={(e) => upd("demoUrl", e.target.value)} /></Field>
+            <Field label="Deck URL"><Input disabled={locked} value={data.deckUrl} onChange={(e) => upd("deckUrl", e.target.value)} /></Field>
+            <Field label="GitHub URL"><Input disabled={locked} value={data.githubUrl} onChange={(e) => upd("githubUrl", e.target.value)} /></Field>
+            <Field label="Video URL"><Input disabled={locked} value={data.videoUrl} onChange={(e) => upd("videoUrl", e.target.value)} /></Field>
           </div>
         </Card>
 
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" onClick={() => toast.success("Draft saved")}><Save className="size-4" />Save draft</Button>
+          <Button variant="outline" disabled={locked} onClick={async () => { try { await saveDraft(); toast.success("Draft saved"); } catch (error) { toast.error(error instanceof Error ? error.message : "Save failed"); } }}><Save className="size-4" />Save draft</Button>
           <Button asChild variant="outline"><Link to="/app/submission/preview"><Eye className="size-4" />Preview</Link></Button>
-          <Button variant="kafd" onClick={() => { toast.success("Submitted for mentor review"); nav({ to: "/app/submission/confirmation" }); }}>
+          <Button disabled={locked} variant="kafd" onClick={async () => { try { const saved = await saveDraft(); await apiPost(`/api/submissions/${saved.id}/submit-for-review`, {}); await queryClient.invalidateQueries({ queryKey: ["my-submission"] }); toast.success("Submitted for mentor review"); nav({ to: "/app/submission/confirmation" }); } catch (error) { toast.error(error instanceof Error ? error.message : "Submit failed"); } }}>
             <Send className="size-4" />Submit for Mentor Review
           </Button>
         </div>
       </div>
+      )}
     </AppShell>
   );
 }

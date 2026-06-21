@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
   DropdownMenu,
@@ -9,41 +10,77 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Users } from "lucide-react";
-import { ROLES } from "@/lib/mock-data";
-import { useRole } from "@/lib/role";
+import { logout, useAuthContext } from "@/lib/auth-client";
 
 export function RoleSwitcher({ compact = false }: { compact?: boolean }) {
-  const [role, setRole] = useRole();
+  if (import.meta.env.PROD) {
+    return null;
+  }
+
   const navigate = useNavigate();
-  const current = ROLES.find((r) => r.id === role) ?? ROLES[0];
+  const queryClient = useQueryClient();
+  const { data } = useAuthContext();
+  const label = data?.authenticated
+    ? data.activeTeam?.teamRole === "lead"
+      ? "Team Lead"
+      : data.activeTeam?.teamRole === "member"
+        ? "Team Member"
+        : data.user?.platformRole === "admin"
+          ? "Admin"
+          : data.user?.platformRole === "mentor"
+            ? "Mentor"
+            : data.user?.platformRole === "judge"
+              ? "Judge"
+              : "Participant"
+    : "Guest";
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2 border-gold/40 bg-gold/5 text-foreground hover:bg-gold/10">
           <Users className="size-3.5 text-gold-foreground" />
-          {!compact && <span className="text-xs font-semibold">Demo:</span>}
-          <span className="text-xs">{current.label}</span>
+          {!compact && <span className="text-xs font-semibold">Session:</span>}
+          <span className="text-xs">{label}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-muted-foreground">
-          Preview portal as
+          Current access
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {ROLES.map((r) => (
+        {data?.authenticated ? (
+          <>
+            <DropdownMenuItem
+              onClick={() => navigate({ to: data.correctRedirectPath })}
+              className="text-sm"
+            >
+              {data.user?.fullName ?? "User"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => navigate({ to: data.correctRedirectPath })}
+              className="text-sm"
+            >
+              Open my portal
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={async () => {
+                await logout();
+                await queryClient.invalidateQueries({ queryKey: ["auth-context"] });
+                navigate({ to: "/login" });
+              }}
+              className="text-sm"
+            >
+              Sign out
+            </DropdownMenuItem>
+          </>
+        ) : (
           <DropdownMenuItem
-            key={r.id}
-            onClick={() => {
-              setRole(r.id);
-              navigate({ to: r.home });
-            }}
+            onClick={() => navigate({ to: "/login" })}
             className="text-sm"
           >
-            {r.label}
-            {r.id === role && <span className="ml-auto text-xs text-gold-foreground">●</span>}
+            Sign in
           </DropdownMenuItem>
-        ))}
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
