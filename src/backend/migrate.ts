@@ -15,7 +15,8 @@ export function runMigrations() {
   const applied = new Set(
     sqlite
       .prepare("SELECT id FROM __migrations")
-      .all() as Array<{ id: string }>,
+      .all()
+      .map((row) => (row as { id: string }).id),
   );
 
   const files = fs
